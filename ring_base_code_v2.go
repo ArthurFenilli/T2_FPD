@@ -98,6 +98,7 @@ func ElectionStage(TaskId int, in chan mensagem, out chan mensagem, leader int) 
 
 		case 4:
 			actualLeader = temp.corpo[0]
+			fmt.Printf("%2d: líder atual %d\n", TaskId, actualLeader)
 			out <- temp
 			wg.Done()
 		default:
