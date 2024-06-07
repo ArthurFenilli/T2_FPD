@@ -23,15 +23,23 @@ var (
 	wg       sync.WaitGroup // wg é usado para esperar que o programa termine
 	wg2      sync.WaitGroup
 	wg3      sync.WaitGroup
+	wg4      sync.WaitGroup
 )
 
 func ElectionControler(in chan int) {
 	defer wg.Done()
 	count := 0
 	var temp mensagem
+	processBack := -1
 	for count < 5 {
 		wg2.Add(1)
 		wg3.Add(1)
+		if processBack != -1 {
+			wg4.Add(1)
+			temp.tipo = 5
+			chans[(processBack+3)%4] <- temp
+			wg4.Wait()
+		}
 		rand.Seed(time.Now().UnixNano())
 
 		failedProcess := rand.Intn(len(chans))
@@ -56,8 +64,59 @@ func ElectionControler(in chan int) {
 		fmt.Println("\n   Processo controlador concluído\n")
 		count++
 		wg2.Wait()
+		processBack = failedProcess
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func ElectionControler2(in chan int) {
+	defer wg.Done()
+	var temp mensagem
+
+	wg2.Add(1)
+	wg3.Add(1)
+
+	failedProcess := 0
+
+	electionProcess := 3
+
+	temp.tipo = 2
+	chans[(failedProcess+3)%4] <- temp
+	fmt.Printf("Controle: mudar o processo %d para falho\n", failedProcess)
+
+	fmt.Printf("Controle: confirmação %d\n", <-in) // receber e imprimir confirmação
+	wg3.Wait()
+
+	// Iniciar eleição
+	temp.tipo = 1
+	chans[(electionProcess+3)%4] <- temp
+	fmt.Printf("Controle: iniciar eleição no processo %d\n", electionProcess)
+
+	fmt.Println("\n   Processo controlador concluído\n")
+
+	wg2.Wait()
+	time.Sleep(5 * time.Second)
+
+	wg2.Add(1)
+	wg4.Add(1)
+
+	processBack := 0
+	electionProcess = 2
+
+	temp.tipo = 5
+	chans[(processBack+3)%4] <- temp
+	wg4.Wait()
+
+	// Iniciar eleição
+	temp.tipo = 1
+	chans[(electionProcess+3)%4] <- temp
+	fmt.Printf("Controle: iniciar eleição no processo %d\n", electionProcess)
+
+	fmt.Println("\n   Processo controlador concluído\n")
+
+	wg2.Wait()
+	time.Sleep(5 * time.Second)
+
 }
 
 func ElectionStage(TaskId int, in chan mensagem, out chan mensagem, leader int) {
@@ -123,6 +182,14 @@ func ElectionStage(TaskId int, in chan mensagem, out chan mensagem, leader int) 
 				count++
 				wg2.Done()
 			}
+
+		case 5:
+			bFailed = false
+			fmt.Printf("%2d: Voltei do falho  \n", TaskId)
+			//fmt.Printf("%2d: líder atual %d\n", TaskId, actualLeader)
+			//controle <- -5
+			wg4.Done()
+
 		default:
 			fmt.Printf("%2d: não conheço este tipo de mensagem\n", TaskId)
 			fmt.Printf("%2d: líder atual %d\n", TaskId, actualLeader)
@@ -148,5 +215,5 @@ func main() {
 	fmt.Println("\n   Processo controlador criado\n")
 
 	wg.Wait() // Esperar as goroutines terminarem
-	fmt.Println("Bosta\n")
+	fmt.Println("\n   Programa finalizado\n")
 }
