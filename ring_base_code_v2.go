@@ -56,7 +56,7 @@ func ElectionControler(in chan int) {
 		fmt.Println("\n   Processo controlador concluído\n")
 		count++
 		wg2.Wait()
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -67,12 +67,15 @@ func ElectionStage(TaskId int, in chan mensagem, out chan mensagem, leader int) 
 	var actualLeader int
 	var bFailed bool = false // todos iniciam sem falha
 	preventLoop := false
+	count := 1
 
 	actualLeader = leader // indicação do líder veio por parâmetro
 
 	for true {
 		temp := <-in // ler mensagem
-		fmt.Printf("%2d: recebi mensagem %d, [ %d, %d, %d, %d ]\n", TaskId, temp.tipo, temp.corpo[0], temp.corpo[1], temp.corpo[2], temp.corpo[3])
+		if !preventLoop {
+			fmt.Printf("%2d: recebi mensagem %d, [ %d, %d, %d, %d ] - iteracao %d\n", TaskId, temp.tipo, temp.corpo[0], temp.corpo[1], temp.corpo[2], temp.corpo[3], count)
+		}
 
 		switch temp.tipo {
 		case 1:
@@ -85,6 +88,8 @@ func ElectionStage(TaskId int, in chan mensagem, out chan mensagem, leader int) 
 					}
 				}
 				temp.corpo[0] = actualLeader
+				fmt.Printf("%2d: líder atual %d, - iteracao %d \n", TaskId, actualLeader, count)
+				preventLoop = true
 				out <- temp
 			} else {
 				if !bFailed {
@@ -98,7 +103,7 @@ func ElectionStage(TaskId int, in chan mensagem, out chan mensagem, leader int) 
 		case 2:
 			bFailed = true
 			fmt.Printf("%2d: falho %v \n", TaskId, bFailed)
-			fmt.Printf("%2d: líder atual %d\n", TaskId, actualLeader)
+			fmt.Printf("%2d: líder atual %d, - iteracao %d \n", TaskId, actualLeader, count)
 			controle <- -5
 			wg3.Done()
 		case 3:
@@ -110,11 +115,12 @@ func ElectionStage(TaskId int, in chan mensagem, out chan mensagem, leader int) 
 		case 4:
 			if !preventLoop {
 				actualLeader = temp.corpo[0]
-				fmt.Printf("%2d: líder atual %d\n", TaskId, actualLeader)
-				preventLoop = true
+				fmt.Printf("%2d: líder atual %d, - iteracao %d \n", TaskId, actualLeader, count)
 				out <- temp
+				count++
 			} else {
 				preventLoop = false
+				count++
 				wg2.Done()
 			}
 		default:
